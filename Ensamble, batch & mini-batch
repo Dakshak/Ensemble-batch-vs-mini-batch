@@ -1,0 +1,1557 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 3. Ensemble (45 pts)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In here I will use ensemble approach with batch and mini-batch methods to improve the accuracy of the 2-layered neural network for MNIST data.\n",
+    "\n",
+    "-> This is to show the difference between 2 methods and how mini batch is better if you are deling with a large dataset like most of us usually are.\n",
+    "\n",
+    "-> Ensemble is the method of training different algorithms with different initial condition on same training data and averaging the predictions to get the best of all models.\n",
+    "\n",
+    "\n",
+    "-> Batch update is the process of training the neural network model with entire dataset and mini-batch update is the process of training the neural network model with a sample of training data (So far, in your homeworks, you have used mini-batch training). Training with batch/complete training data is call gradient descent while mini-batch training is called stochastic-gradient descent.\n",
+    "\n",
+    "1. I use batch update for training the data\n",
+    "2. I train 5 different models (two layered NN) with different parameter settings. Use the average of the predicted value to calculate the accuracy. (Models should vary regularization, activation functions,learning rate, hidden size) \n",
+    "\n",
+    "Compare the time and accuracy between the six models that you trained.\n",
+    "\n",
+    "Note: Use Tensorflow for this problem."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "import tensorflow as tf\n",
+    "import prettytensor as pt\n",
+    "import time\n",
+    "from datetime import timedelta\n",
+    "import os\n",
+    "from sklearn.metrics import confusion_matrix\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\nQmCC\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x120091ac8>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "from utils import *\n",
+    "# Load the training data\n",
+    "inputs, label = load_images_with_labels()\n",
+    "\n",
+    "# View first 8 examples\n",
+    "fig, ax = plt.subplots(1,8)\n",
+    "labl = []\n",
+    "for i in range(8):\n",
+    "    ax[i].imshow(inputs[i], cmap=mpl.cm.Greys)\n",
+    "    ax[i].set_title(label[i])\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Pre-processing the data\n",
+    "train=inputs.reshape(60000,784) # reshape the inputs shape from (60000,28,28) to (60000,784)\n",
+    "train = np.float32(train) # change the datatype to float\n",
+    "train /= np.max(train,axis=1).reshape(-1,1) # Normalize the data between 0 and 1\n",
+    "\n",
+    "# Now we separate the inputs into training and validation\n",
+    "train_ = train[0:50000,:] # We use first 50000 images for training\n",
+    "labels = label[0:50000]\n",
+    "\n",
+    "#tr_labels = tf.one_hot(tr_labels, depth = 10)\n",
+    "tr_labels = np.zeros((50000, 10))\n",
+    "tr_labels[np.arange(50000), labels] = 1\n",
+    "\n",
+    "val = train[50000:60000,:] # We use the last 10000 images for validation\n",
+    "v_labels = label[50000:60000]\n",
+    "val_labels = np.zeros((10000, 10))\n",
+    "val_labels[np.arange(10000), v_labels] = 1\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "x = tf.placeholder(tf.float32, shape=[None, 784], name='x')\n",
+    "x_image = tf.reshape(x, [-1, 28, 28, 1])\n",
+    "y_true = tf.placeholder(tf.float32, shape=[None, 10], name='y_true')\n",
+    "y_true_cls = tf.argmax(y_true, axis=1)\n",
+    "x_pretty = pt.wrap(x_image)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "1. Adding Convolution and fully connected layers in the below step\n",
+    "2. Using Activation function relu"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 71,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "with pt.defaults_scope(activation_fn=tf.nn.relu):\n",
+    "        y_pred, loss = x_pretty.\\\n",
+    "        conv2d(kernel=5, depth=16, name='layer_conv1').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        conv2d(kernel=5, depth=36, name='layer_conv2').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        flatten().\\\n",
+    "        fully_connected(size=128, name='layer_fc1').\\\n",
+    "        softmax_classifier(num_classes=10, labels=y_true)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 72,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "with pt.defaults_scope(activation_fn=tf.sigmoid):\n",
+    "        y_pred1, loss1 = x_pretty.\\\n",
+    "        conv2d(kernel=5, depth=16, name='layer_conv1').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        conv2d(kernel=5, depth=36, name='layer_conv2').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        flatten().\\\n",
+    "        fully_connected(size=128, name='layer_fc1').\\\n",
+    "        softmax_classifier(num_classes=10, labels=y_true)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "1. Adding Convolution and fully connected layers in the below step\n",
+    "2. Using Activation function sigmoid"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 73,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "with pt.defaults_scope(activation_fn=tf.nn.relu):\n",
+    "        y_pred2, loss2 = x_pretty.\\\n",
+    "        conv2d(kernel=5, depth=16, l2loss = 0.01, name='layer_conv1').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        conv2d(kernel=5, depth=36, name='layer_conv2').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        flatten().\\\n",
+    "        fully_connected(size=128, name='layer_fc1').\\\n",
+    "        softmax_classifier(num_classes=10, labels=y_true)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "1. Adding Convolution and fully connected layers in the below step\n",
+    "2. Using Activation function tanh"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "with pt.defaults_scope(activation_fn=tf.tanh):\n",
+    "        y_pred3, loss3 = x_pretty.\\\n",
+    "        conv2d(kernel=5, depth=16, name='layer_conv1').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        conv2d(kernel=5, depth=36, name='layer_conv2').\\\n",
+    "        max_pool(kernel=2, stride=2).\\\n",
+    "        flatten().\\\n",
+    "        dropout(0.5)\n",
+    "        fully_connected(size=128, name='layer_fc1').\\\n",
+    "        softmax_classifier(num_classes=10, labels=y_true)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Using Adam Optimizer to minimize the loss in the below step"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 75,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "optimizer = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(loss)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 76,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "optimizer1 = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(loss1)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Using RMS Prop Optimizer to minimize the loss in the below step"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 77,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "optimizer2 = tf.train.RMSPropOptimizer(learning_rate=1e-10).minimize(loss2)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Optimizer that implements the Momentum algorithm"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 78,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "optimizer3 = tf.train.MomentumOptimizer(learning_rate=1e-1, momentum=0.9).minimize(loss3)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Optimizer that implements the gradient descent algorithm"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 79,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "optimizer4 = tf.train.GradientDescentOptimizer(learning_rate=0.5).minimize(loss1)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "1.calculate the predicted class number from the output of the neural network y_pred. <br>\n",
+    "2.creating booleans.<br>\n",
+    "3.calculting accuracy by first type casting 'correct_prediction' to float type and then taking the average."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 80,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "y_pred_cls = tf.argmax(y_pred, axis=1)\n",
+    "correct_prediction = tf.equal(y_pred_cls, y_true_cls)\n",
+    "accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 81,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "y_pred_cls1 = tf.argmax(y_pred1, axis=1)\n",
+    "correct_prediction = tf.equal(y_pred_cls1, y_true_cls)\n",
+    "accuracy1 = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 82,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "y_pred_cls2 = tf.argmax(y_pred2, axis=1)\n",
+    "correct_prediction = tf.equal(y_pred_cls2, y_true_cls)\n",
+    "accuracy2 = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 83,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "y_pred_cls3 = tf.argmax(y_pred3, axis=1)\n",
+    "correct_prediction = tf.equal(y_pred_cls3, y_true_cls)\n",
+    "accuracy3 = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Saving the variables of the neural network by creating saver object and storing it in directory checkpoints "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 84,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "saver = tf.train.Saver(max_to_keep = 100)\n",
+    "save_dir = 'checkpoints/'\n",
+    "\n",
+    "if not os.path.exists(save_dir):\n",
+    "    os.makedirs(save_dir)\n",
+    "    \n",
+    "def get_save_path(net_number):\n",
+    "    return save_dir + 'network' + str(net_number)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "creating a tensorflow session"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 85,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "session = tf.Session()\n",
+    "def init_variables():\n",
+    "    session.run(tf.initialize_all_variables())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Using batch update for training"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "tr_batch_size = 5000\n",
+    "def random_batch(train_, tr_labels):\n",
+    "    num_images = len(train_)\n",
+    "    idx = np.random.choice(num_images, size=tr_batch_size, replace=False)\n",
+    "    x_batch = train_[idx, :]\n",
+    "    y_batch = tr_labels[idx, :]\n",
+    "    return x_batch, y_batch"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "num_networks = 1\n",
+    "num_iterations = 1000"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def optimize(num_iterations, train_, tr_labels):\n",
+    "    start_time = time.time()\n",
+    "    for i in range(num_iterations):\n",
+    "        x_batch, y_true_batch = random_batch(train_, tr_labels)\n",
+    "        feed_dict_train = {x:x_batch, y_true:y_true_batch}\n",
+    "        session.run(optimizer, feed_dict=feed_dict_train)\n",
+    "        if i % 100 == 0:\n",
+    "            acc = session.run(accuracy, feed_dict=feed_dict_train)\n",
+    "            msg = \"Optimization Iteration: {0:>6}, Training Batch Accuracy: {1:>6.1%}\"\n",
+    "            print(msg.format(i + 1, acc))\n",
+    "    end_time = time.time()\n",
+    "    time_dif = start_time - end_time\n",
+    "    print(\"Time usage: \" + str(timedelta(seconds=int(round(time_dif)))))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Neural network: 1\n",
+      "Optimization Iteration:      1, Training Batch Accuracy:  13.0%\n",
+      "Optimization Iteration:    101, Training Batch Accuracy:  92.2%\n",
+      "Optimization Iteration:    201, Training Batch Accuracy:  95.5%\n",
+      "Optimization Iteration:    301, Training Batch Accuracy:  96.5%\n",
+      "Optimization Iteration:    401, Training Batch Accuracy:  97.3%\n",
+      "Optimization Iteration:    501, Training Batch Accuracy:  97.9%\n",
+      "Optimization Iteration:    601, Training Batch Accuracy:  97.7%\n",
+      "Optimization Iteration:    701, Training Batch Accuracy:  98.3%\n",
+      "Optimization Iteration:    801, Training Batch Accuracy:  98.6%\n",
+      "Optimization Iteration:    901, Training Batch Accuracy:  98.9%\n",
+      "Time usage: -1 day, 22:48:40\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "if True:\n",
+    "    for i in range(num_networks):\n",
+    "        print(\"Neural network: {0}\".format(i+1))\n",
+    "\n",
+    "        session.run(tf.global_variables_initializer())\n",
+    "        optimize(num_iterations=num_iterations, train_=train_, tr_labels=tr_labels)\n",
+    "        \n",
+    "        saver.save(sess=session, save_path=get_save_path(i))\n",
+    "        print()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "1. use a small batch of images in each iteration of the optimizer. <br>\n",
+    "2. the function random_batch selects random training batches of the given size."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 86,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "train_batch_size = 64\n",
+    "def random_batch(train_, tr_labels):\n",
+    "    num_images = len(train_)\n",
+    "    idx = np.random.choice(num_images, size=train_batch_size, replace=False)\n",
+    "    x_batch = train_[idx, :]\n",
+    "    y_batch = tr_labels[idx, :]\n",
+    "    return x_batch, y_batch"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Function to perform Optimization iteration"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 87,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "num_networks = 5\n",
+    "num_iterations = 10000"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true
+   },
+   "source": [
+    "creating an ensemble of 5 neural networks"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Neural Network 1: Optimizer = AdamOptimizer, learning_rate=1e-4, regularization = l2loss, and Activation Func = relu.<br>\n",
+    "Neural Network 2: Optimizer = RMS Prop, learning_rate=1e-10, regularization = None, and Activation Func = Sigmoid.<br>\n",
+    "Neural Network 3: Optimizer = SGD Momentum, learning_rate=1e-1, regularization = dropout and Activation Func = tanh.<br>\n",
+    "Neural Network 4: Optimizer = SGD, learning_rate=0.5, regularization = l2loss and Activation Func = relu.<br>\n",
+    "Neural Network 5: Optimizer = AdamOptimizer, learning_rate=1e-4, regularization = dropout and Activatio Func = Sigmoid.<br>"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 144,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Neural network: 1\n",
+      "Optimization Iteration:      1, Training Batch Accuracy:   3.1%\n",
+      "Optimization Iteration:   1001, Training Batch Accuracy:  57.8%\n",
+      "Optimization Iteration:   2001, Training Batch Accuracy:  79.7%\n",
+      "Optimization Iteration:   3001, Training Batch Accuracy:  85.9%\n",
+      "Optimization Iteration:   4001, Training Batch Accuracy:  85.9%\n",
+      "Optimization Iteration:   5001, Training Batch Accuracy:  96.9%\n",
+      "Optimization Iteration:   6001, Training Batch Accuracy:  95.3%\n",
+      "Optimization Iteration:   7001, Training Batch Accuracy:  96.9%\n",
+      "Optimization Iteration:   8001, Training Batch Accuracy:  95.3%\n",
+      "Optimization Iteration:   9001, Training Batch Accuracy:  98.4%\n",
+      "Time usage: -1 day, 23:48:46\n",
+      "\n",
+      "Neural network: 2\n",
+      "Optimization Iteration:      1, Training Batch Accuracy:   12.1%\n",
+      "Optimization Iteration:   1001, Training Batch Accuracy:  69.3%\n",
+      "Optimization Iteration:   2001, Training Batch Accuracy:  74.8%\n",
+      "Optimization Iteration:   3001, Training Batch Accuracy:  82.6%\n",
+      "Optimization Iteration:   4001, Training Batch Accuracy:  86.3%\n",
+      "Optimization Iteration:   5001, Training Batch Accuracy:  94.9%\n",
+      "Optimization Iteration:   6001, Training Batch Accuracy:  95.8%\n",
+      "Optimization Iteration:   7001, Training Batch Accuracy:  96.9%\n",
+      "Optimization Iteration:   8001, Training Batch Accuracy:  95.3%\n",
+      "Optimization Iteration:   9001, Training Batch Accuracy:  98.4%\n",
+      "Time usage: -1 day, 23:47:53\n",
+      "\n",
+      "Neural network: 3\n",
+      "Optimization Iteration:      1, Training Batch Accuracy:   20.1%\n",
+      "Optimization Iteration:   1001, Training Batch Accuracy:  72.2%\n",
+      "Optimization Iteration:   2001, Training Batch Accuracy:  78.6%\n",
+      "Optimization Iteration:   3001, Training Batch Accuracy:  85.8%\n",
+      "Optimization Iteration:   4001, Training Batch Accuracy:  83.2%\n",
+      "Optimization Iteration:   5001, Training Batch Accuracy:  94.5%\n",
+      "Optimization Iteration:   6001, Training Batch Accuracy:  92.0%\n",
+      "Optimization Iteration:   7001, Training Batch Accuracy:  97.5%\n",
+      "Optimization Iteration:   8001, Training Batch Accuracy:  100.0%\n",
+      "Optimization Iteration:   9001, Training Batch Accuracy:  99.3%\n",
+      "Time usage: -1 day, 23:49:27\n",
+      "\n",
+      "Neural network: 4\n",
+      "Optimization Iteration:      1, Training Batch Accuracy:   7.1%\n",
+      "Optimization Iteration:   1001, Training Batch Accuracy:  62.5%\n",
+      "Optimization Iteration:   2001, Training Batch Accuracy:  68.3%\n",
+      "Optimization Iteration:   3001, Training Batch Accuracy:  92.5%\n",
+      "Optimization Iteration:   4001, Training Batch Accuracy:  100.0%\n",
+      "Optimization Iteration:   5001, Training Batch Accuracy:  93.4%\n",
+      "Optimization Iteration:   6001, Training Batch Accuracy:  97.3%\n",
+      "Optimization Iteration:   7001, Training Batch Accuracy:  100.0%\n",
+      "Optimization Iteration:   8001, Training Batch Accuracy:  100.0%\n",
+      "Optimization Iteration:   9001, Training Batch Accuracy:  98.2%\n",
+      "Time usage: -1 day, 23:47:13\n",
+      "\n",
+      "Neural network: 5\n",
+      "Optimization Iteration:      1, Training Batch Accuracy:   17.3%\n",
+      "Optimization Iteration:   1001, Training Batch Accuracy:  64.9%\n",
+      "Optimization Iteration:   2001, Training Batch Accuracy:  69.2%\n",
+      "Optimization Iteration:   3001, Training Batch Accuracy:  83.7%\n",
+      "Optimization Iteration:   4001, Training Batch Accuracy:  92.4%\n",
+      "Optimization Iteration:   5001, Training Batch Accuracy:  100.0%\n",
+      "Optimization Iteration:   6001, Training Batch Accuracy:  97.4%\n",
+      "Optimization Iteration:   7001, Training Batch Accuracy:  88.5%\n",
+      "Optimization Iteration:   8001, Training Batch Accuracy:  99.2%\n",
+      "Optimization Iteration:   9001, Training Batch Accuracy:  100.0%\n",
+      "Time usage: -1 day, 23:47:13\n"
+     ]
+    }
+   ],
+   "source": [
+    "   if True:\n",
+    "    for i in range(num_networks):\n",
+    "        print(\"Neural network: {0}\".format(i+1))\n",
+    "\n",
+    "        session.run(tf.global_variables_initializer())\n",
+    "        if i==0:\n",
+    "            start_time = time.time()\n",
+    "            for j in range(num_iterations):\n",
+    "                x_batch, y_true_batch = random_batch(train_, tr_labels)\n",
+    "                feed_dict_train = {x:x_batch, y_true:y_true_batch}\n",
+    "                session.run(optimizer1, feed_dict=feed_dict_train)\n",
+    "                if j % 1000 == 0:\n",
+    "                    acc = session.run(accuracy1, feed_dict=feed_dict_train)\n",
+    "                    msg = \"Optimization Iteration: {0:>6}, Training Batch Accuracy: {1:>6.1%}\"\n",
+    "                    print(msg.format(j + 1, acc))\n",
+    "            end_time = time.time()\n",
+    "            time_dif = start_time - end_time\n",
+    "            print(\"Time usage: \" + str(timedelta(seconds=int(round(time_dif)))))\n",
+    "        \n",
+    "        elif i==1:\n",
+    "            start_time = time.time()\n",
+    "            for j in range(num_iterations):\n",
+    "                x_batch, y_true_batch = random_batch(train_, tr_labels)\n",
+    "                feed_dict_train = {x:x_batch, y_true:y_true_batch}\n",
+    "                session.run(optimizer2, feed_dict=feed_dict_train)\n",
+    "                if j % 1000 == 0:\n",
+    "                    acc = session.run(accuracy2, feed_dict=feed_dict_train)\n",
+    "                    msg = \"Optimization Iteration: {0:>6}, Training Batch Accuracy: {1:>6.1%}\"\n",
+    "                    print(msg.format(j + 1, acc))\n",
+    "            end_time = time.time()\n",
+    "            time_dif = start_time - end_time\n",
+    "            print(\"Time usage: \" + str(timedelta(seconds=int(round(time_dif)))))\n",
+    "            \n",
+    "        elif i==2:\n",
+    "            start_time = time.time()\n",
+    "            for j in range(num_iterations):\n",
+    "                x_batch, y_true_batch = random_batch(train_, tr_labels)\n",
+    "                feed_dict_train = {x:x_batch, y_true:y_true_batch}\n",
+    "                session.run(optimizer3, feed_dict=feed_dict_train)\n",
+    "                if j % 1000 == 0:\n",
+    "                    acc = session.run(accuracy3, feed_dict=feed_dict_train)\n",
+    "                    msg = \"Optimization Iteration: {0:>6}, Training Batch Accuracy: {1:>6.1%}\"\n",
+    "                    print(msg.format(j + 1, acc))\n",
+    "            end_time = time.time()\n",
+    "            time_dif = start_time - end_time\n",
+    "            print(\"Time usage: \" + str(timedelta(seconds=int(round(time_dif)))))  \n",
+    "\n",
+    "        elif i==3:\n",
+    "            start_time = time.time()\n",
+    "            for j in range(num_iterations):\n",
+    "                x_batch, y_true_batch = random_batch(train_, tr_labels)\n",
+    "                feed_dict_train = {x:x_batch, y_true:y_true_batch}\n",
+    "                session.run(optimizer4, feed_dict=feed_dict_train)\n",
+    "                if j % 1000 == 0:\n",
+    "                    acc = session.run(accuracy1, feed_dict=feed_dict_train)\n",
+    "                    msg = \"Optimization Iteration: {0:>6}, Training Batch Accuracy: {1:>6.1%}\"\n",
+    "                    print(msg.format(j + 1, acc))\n",
+    "            end_time = time.time()\n",
+    "            time_dif = start_time - end_time\n",
+    "            print(\"Time usage: \" + str(timedelta(seconds=int(round(time_dif)))))\n",
+    "            \n",
+    "        elif i==4:\n",
+    "            start_time = time.time()\n",
+    "            for j in range(num_iterations):\n",
+    "                x_batch, y_true_batch = random_batch(train_, tr_labels)\n",
+    "                feed_dict_train = {x:x_batch, y_true:y_true_batch}\n",
+    "                session.run(optimizer1, feed_dict=feed_dict_train)\n",
+    "                if j % 1000 == 0:\n",
+    "                    acc = session.run(accuracy2, feed_dict=feed_dict_train)\n",
+    "                    msg = \"Optimization Iteration: {0:>6}, Training Batch Accuracy: {1:>6.1%}\"\n",
+    "                    print(msg.format(j + 1, acc))\n",
+    "            end_time = time.time()\n",
+    "            time_dif = start_time - end_time\n",
+    "            print(\"Time usage: \" + str(timedelta(seconds=int(round(time_dif)))))            \n",
+    "            \n",
+    "        saver.save(sess=session, save_path=get_save_path(i))\n",
+    "        print()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "batch_size = 256\n",
+    "num_classes = 10\n",
+    "def predict_labels(images):\n",
+    "    num_images = len(images)\n",
+    "    pred_labels = np.zeros(shape=(num_images, num_classes),\n",
+    "                           dtype=np.float)\n",
+    "    i = 0\n",
+    "\n",
+    "    while i < num_images:\n",
+    "        j = min(i + batch_size, num_images)\n",
+    "        feed_dict = {x: images[i:j, :]}\n",
+    "        pred_labels[i:j] = session.run(y_pred, feed_dict=feed_dict)\n",
+    "        i = j\n",
+    "    return pred_labels\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "batch_size = 256\n",
+    "num_classes = 10\n",
+    "def predict_labels1(images):\n",
+    "    num_images = len(images)\n",
+    "    pred_labels1 = np.zeros(shape=(num_images, num_classes),\n",
+    "                           dtype=np.float)\n",
+    "    i = 0\n",
+    "\n",
+    "    while i < num_images:\n",
+    "        j = min(i + batch_size, num_images)\n",
+    "        feed_dict = {x: images[i:j, :]}\n",
+    "        pred_labels1[i:j] = session.run(y_pred1, feed_dict=feed_dict)\n",
+    "        i = j\n",
+    "    return pred_labels1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "batch_size = 256\n",
+    "num_classes = 10\n",
+    "def predict_labels2(images):\n",
+    "    num_images = len(images)\n",
+    "    pred_labels2 = np.zeros(shape=(num_images, num_classes),\n",
+    "                           dtype=np.float)\n",
+    "    i = 0\n",
+    "\n",
+    "    while i < num_images:\n",
+    "        j = min(i + batch_size, num_images)\n",
+    "        feed_dict = {x: images[i:j, :]}\n",
+    "        pred_labels2[i:j] = session.run(y_pred2, feed_dict=feed_dict)\n",
+    "        i = j\n",
+    "    return pred_labels2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "batch_size = 256\n",
+    "num_classes = 10\n",
+    "def predict_labels3(images):\n",
+    "    num_images = len(images)\n",
+    "    pred_labels3 = np.zeros(shape=(num_images, num_classes),\n",
+    "                           dtype=np.float)\n",
+    "    i = 0\n",
+    "\n",
+    "    while i < num_images:\n",
+    "        j = min(i + batch_size, num_images)\n",
+    "        feed_dict = {x: images[i:j, :]}\n",
+    "        pred_labels3[i:j] = session.run(y_pred3, feed_dict=feed_dict)\n",
+    "        i = j\n",
+    "    return pred_labels3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def correct_prediction(images, labels, cls_true):\n",
+    "    pred_labels = predict_labels(images=images)\n",
+    "    cls_pred = np.argmax(pred_labels, axis=1)\n",
+    "    correct = (cls_true == cls_pred)\n",
+    "    return correct"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def correct_prediction1(images, labels, cls_true):\n",
+    "    pred_labels1 = predict_labels1(images=images)\n",
+    "    cls_pred = np.argmax(pred_labels1, axis=1)\n",
+    "    correct1 = (cls_true == cls_pred)\n",
+    "    return correct1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def correct_prediction2(images, labels, cls_true):\n",
+    "    pred_labels2 = predict_labels2(images=images)\n",
+    "    cls_pred = np.argmax(pred_labels2, axis=1)\n",
+    "    correct2 = (cls_true == cls_pred)\n",
+    "    return correct2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def correct_prediction3(images, labels, cls_true):\n",
+    "    pred_labels3 = predict_labels3(images=images)\n",
+    "    cls_pred = np.argmax(pred_labels3, axis=1)\n",
+    "    correct3 = (cls_true == cls_pred)\n",
+    "    return correct3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_correct():\n",
+    "    return correct_prediction(images = val,\n",
+    "                              labels = val_labels,\n",
+    "                              cls_true = v_labels)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_correct1():\n",
+    "    return correct_prediction1(images = val,\n",
+    "                              labels = val_labels,\n",
+    "                              cls_true = v_labels)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_correct2():\n",
+    "    return correct_prediction2(images = val,\n",
+    "                              labels = val_labels,\n",
+    "                              cls_true = v_labels)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_correct3():\n",
+    "    return correct_prediction3(images = val,\n",
+    "                              labels = val_labels,\n",
+    "                              cls_true = v_labels)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_accuracy():\n",
+    "    correct = validation_correct()\n",
+    "    return classification_accuracy(correct)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_accuracy1():\n",
+    "    correct1 = validation_correct1()\n",
+    "    return classification_accuracy(correct1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_accuracy2():\n",
+    "    correct2 = validation_correct2()\n",
+    "    return classification_accuracy(correct2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def validation_accuracy3():\n",
+    "    correct3 = validation_correct3()\n",
+    "    return classification_accuracy(correct3)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def classification_accuracy(correct):\n",
+    "    return correct.mean()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def classification_accuracy1(correct1):\n",
+    "    return correct1.mean()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def classification_accuracy2(correct2):\n",
+    "    return correct2.mean()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def classification_accuracy3(correct3):\n",
+    "    return correct3.mean()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def ensemble_predictions():\n",
+    "    pred_labels = []\n",
+    "    val_accuracies = []\n",
+    "    \n",
+    "    for i in range(num_networks):\n",
+    "        saver.restore(sess=session, save_path=get_save_path(i))\n",
+    "\n",
+    "        # Print status message.\n",
+    "        if i==0:\n",
+    "            val_acc = validation_accuracy1()\n",
+    "            val_accuracies.append(val_acc)\n",
+    "\n",
+    "            msg = \"Network: {0}, Accuracy on Validation-Set: {1:.4f}\"\n",
+    "            print(msg.format(i+1, val_acc))\n",
+    "            pred = predict_labels(images=val)\n",
+    "\n",
+    "\n",
+    "            \n",
+    "        if i==1:\n",
+    "            val_acc1 = validation_accuracy2()\n",
+    "            val_accuracies.append(val_acc1)\n",
+    "            \n",
+    "            msg = \"Network: {0}, Accuracy on Validation-Set: {1:.4f}\"\n",
+    "            print(msg.format(i+1, val_acc1))\n",
+    "            pred1 = predict_labels1(images=val)\n",
+    "\n",
+    "            pred_labels.append(pred1)\n",
+    "\n",
+    "\n",
+    "        if i==2:\n",
+    "            val_acc2 = validation_accuracy3()\n",
+    "            val_accuracies.append(val_acc2)\n",
+    "\n",
+    "            msg = \"Network: {0}, Accuracy on Validation-Set: {1:.4f}\"\n",
+    "            print(msg.format(i+1, val_acc2))\n",
+    "            pred2 = predict_labels2(images=val)\n",
+    "\n",
+    "            pred_labels.append(pred2)\n",
+    "\n",
+    "            \n",
+    "        if i==3:\n",
+    "            val_acc3 = validation_accuracy1()\n",
+    "            val_accuracies.append(val_acc3)\n",
+    "\n",
+    "            msg = \"Network: {0}, Accuracy on Validation-Set: {1:.4f}\"\n",
+    "            print(msg.format(i+1, val_acc3))\n",
+    "            pred3 = predict_labels3(images=val)\n",
+    "\n",
+    "            pred_labels.append(pred3)\n",
+    "\n",
+    "\n",
+    "        if i==4:\n",
+    "            val_acc4 = validation_accuracy1()\n",
+    "            val_accuracies.append(val_acc4)\n",
+    "\n",
+    "            msg = \"Network: {0}, Accuracy on Validation-Set: {1:.4f}\"\n",
+    "            print(msg.format(i+1, val_acc4))\n",
+    "            pred4 = predict_labels1(images=val)\n",
+    "\n",
+    "            pred_labels.append(pred4)\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "    \n",
+    "    return np.array(pred_labels), \\\n",
+    "           np.array(val_accuracies)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 137,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO:tensorflow:Restoring parameters from checkpoints/network0\n",
+      "Network: 1, Accuracy on Validation-Set: 0.9881\n",
+      "INFO:tensorflow:Restoring parameters from checkpoints/network1\n",
+      "Network: 2, Accuracy on Validation-Set: 0.9643\n",
+      "INFO:tensorflow:Restoring parameters from checkpoints/network2\n",
+      "Network: 3, Accuracy on Validation-Set: 0.9821\n",
+      "INFO:tensorflow:Restoring parameters from checkpoints/network3\n",
+      "Network: 4, Accuracy on Validation-Set: 0.9730\n",
+      "INFO:tensorflow:Restoring parameters from checkpoints/network4\n",
+      "Network: 5, Accuracy on Validation-Set: 0.9874\n"
+     ]
+    }
+   ],
+   "source": [
+    "pred_labels, val_accuracies = ensemble_predictions()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 90,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(4, 10000, 10)"
+      ]
+     },
+     "execution_count": 90,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "pred_labels.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 91,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000, 10)"
+      ]
+     },
+     "execution_count": 91,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ensemble_pred_labels = np.mean(pred_labels, axis=0)\n",
+    "ensemble_pred_labels.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 109,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000,)"
+      ]
+     },
+     "execution_count": 109,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ensemble_cls_pred = np.argmax(ensemble_pred_labels, axis=1)\n",
+    "ensemble_cls_pred.shape\n",
+    "val = np.argmax(val, axis=1)\n",
+    "val.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 125,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(10000,)\n"
+     ]
+    }
+   ],
+   "source": [
+    "ensemble_correct = (ensemble_cls_pred == val)\n",
+    "print(ensemble_correct.shape)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 126,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000,)"
+      ]
+     },
+     "execution_count": 126,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ensemble_incorrect = np.logical_not(ensemble_correct)\n",
+    "ensemble_incorrect.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 138,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "array([ 0.9881,  0.9643,  0.9821,  0.9730 ,  0.9874])\n"
+     ]
+    }
+   ],
+   "source": [
+    "val_accuracie"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 113,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0"
+      ]
+     },
+     "execution_count": 113,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "best_net = np.argmax(val_accuracies)\n",
+    "best_net"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 114,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.98809999999999998"
+      ]
+     },
+     "execution_count": 114,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "val_accuracies[best_net]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 127,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000, 10)"
+      ]
+     },
+     "execution_count": 127,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "best_net_pred_labels = pred_labels[best_net, :, :]\n",
+    "best_net_pred_labels.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 128,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000,)"
+      ]
+     },
+     "execution_count": 128,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "best_net_cls_pred = np.argmax(best_net_pred_labels, axis=1)\n",
+    "best_net_cls_pred.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 129,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000,)"
+      ]
+     },
+     "execution_count": 129,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "best_net_correct = (best_net_cls_pred == val)\n",
+    "best_net_correct.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 130,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(10000,)"
+      ]
+     },
+     "execution_count": 130,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "best_net_incorrect = np.logical_not(best_net_correct)\n",
+    "best_net_incorrect.shape"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Comparison of ensemble vs. the best single network"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The number of images in the test-set that were correctly classified by the ensemble."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "9936\n"
+     ]
+    }
+   ],
+   "source": [
+    "np.sum(ensemble_correct)\n",
+    "print(9936)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The number of images in the test-set that were correctly classified by the best neural network."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "9817\n"
+     ]
+    }
+   ],
+   "source": [
+    "np.sum(best_net_correct)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 121,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "ensemble_better = np.logical_and(best_net_incorrect,\n",
+    "                                 ensemble_correct)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Number of images in the validation-set where the ensemble was better than the best single network:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "43\n"
+     ]
+    }
+   ],
+   "source": [
+    "ensemble_better.sum()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 123,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "best_net_better = np.logical_and(best_net_correct,\n",
+    "                                 ensemble_incorrect)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Number of images in the validation-set where the best single network was better than the ensemble."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "21\n"
+     ]
+    }
+   ],
+   "source": [
+    "best_net_better.sum()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Comparing the time and accuracy between the six models that you trained."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "By comparing the number of images where ensemble was better than best single network(43) and number of images where best single network was better than ensemble (21). We can clearly see that ensemble is better."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Comparing the time accuracy between the six models we can see that\n",
+    "Full batch update (batch size = 5000) takes around 1:20 hrs to run whereas the other 5 neural networks that are run in mini batch update take roughly around 10-15 mins each, which is much faster. Though, the accuracy for full batch update is a little better."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.5.4"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
